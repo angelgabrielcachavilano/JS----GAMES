@@ -1,10 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
     console.log("init");
-    const canvas = document.querySelector('canvas');
+    const canvas = document.querySelector("canvas");
     const ctx = canvas.getContext('2d'); // 2D context rendering
-
-    canvas.with = 448
-    canvas.height = 460
+    const $sprite = document.querySelector('#sprite');
+    const $bricks = document.querySelector('#bricks');
+    canvas.with = 448;
+    canvas.height = 400;
 
     /* Variables del juego */
     let counter = 0;
@@ -29,6 +30,36 @@ document.addEventListener("DOMContentLoaded", () => {
     let rightPressed = false;
     let leftPressed = false;
 
+    /* VARIABLES DE LOS LADRILLOS*/
+    const brickRowCount = 6;     // cantidad de ladrillos
+    const brickColumnCount = 13; // cantidad de columnas
+    const brickWidth = 32;       // ancho de los ladrillos
+    const brickHeight = 16;      // alto de los ladrillos
+    const brickPadding = 0;      // separacion
+    const brickOffsetTop = 80;   // donde empiezan los ladrillos
+    const brickOffsetLeft = 16;
+    const bricks = [];           // arreglo de los ladrillos
+    const BRICK_STATUS = {
+        ACTIVE: 1,
+        DESTROYED: 0
+    }
+
+    for (let c = 0; c < brickColumnCount; c++) {
+        bricks[c] = []; // inicializacion de un array
+        for (let r = 0; r < brickRowCount; r++) {
+            // calculamos la posicion del ladrillo en la pantalla
+            const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+            const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+            // Asignar un color aleatorio a cada ladrillo
+            const random = Math.floor(Math.random() * 8);
+
+            bricks[c][r] = {
+                x:brickX,
+                y:brickY,
+                status:BRICK_STATUS.ACTIVE,
+                color: random}
+        }
+    }
     function drawBall(){
         ctx.beginPath();
         ctx.arc(x, y, ballRadius, 0, Math.PI*2) // anguo de inicio y final, ultimos 2 parametros
@@ -37,16 +68,73 @@ document.addEventListener("DOMContentLoaded", () => {
         ctx.closePath(); // para obtimizar rendimiento y no tener problemas de trazado
     }
     function drawPaddle(){
-        ctx.fillStyle = '#09f'; // color
-        ctx.fillRect(
-            paddlex, // posicion x donde se empieza a dibujar
-            paddley, // posicion y donde se empieza a dibujar
+        ctx.drawImage(
+            $sprite, // la imagen
+            29, // clipX: cordenada de recorte
+            174, // clipY: cordenada de recorte
+            paddleWidth, // el tamaño del recorte
+            paddleHeight, // el tamaño del recorte
+            paddlex, // posicion x del dibujo
+            paddley, // posicion y del dibujo
             paddleWidth, // ancho del dibujo
             paddleHeight // alto del dibujo
         )
     }
-    function drawBricks(){}
-    function collisionDetection(){}
+    function drawBricks(){
+        for (let c = 0; c < brickColumnCount; c++) {
+            for (let r = 0; r < brickRowCount; r++) {
+                const currentBrick = bricks[c][r];
+                if(currentBrick.status === BRICK_STATUS.DESTROYED) continue;
+
+                /*
+                ctx.fillStyle = 'white';
+                ctx.rect(
+                    currentBrick.x, // cordenada x
+                    currentBrick.y, // cordenada y
+                    brickWidth,     // ancho
+                    brickHeight     // alto
+                )
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+                ctx.fill();
+                */
+                const clipX = currentBrick.color * 32;
+
+                ctx.drawImage(
+                    $bricks,
+                    clipX,
+                    0,
+                    32,
+                    14,
+                    currentBrick.x,
+                    currentBrick.y,
+                    brickWidth,
+                    brickHeight
+                )
+            }
+        }
+    }
+    function collisionDetection(){
+         for (let c = 0; c < brickColumnCount; c++) {
+            for (let r = 0; r < brickRowCount; r++) {
+                const currentBrick = bricks[c][r];
+                if(currentBrick.status == BRICK_STATUS.DESTROYED) continue;
+
+                const isBallSameXAsBrick =
+                x > currentBrick.x &&
+                x < currentBrick.x + brickWidth;
+
+                const isBallSameYAsBrick =
+                y > currentBrick.y &&
+                y < currentBrick.y + brickHeight;
+
+                if( isBallSameXAsBrick && isBallSameYAsBrick){
+                    dy = -dy;
+                    currentBrick.status = BRICK_STATUS.DESTROYED;
+                }
+            }
+         }
+    }
     function ballMovement(){
         // la pelota toca la pala
         const isBallSameXasPaddle = x > paddlex && x < paddlex + paddleWidth;
@@ -59,7 +147,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.log("game over");
             document.location.reload();
         }
-
         // para rebotar los movimientos en los laterales
         if( x + dx > canvas.width - ballRadius /* pared derecha*/
              || x + dx < ballRadius /*pared izquierda*/ ){
